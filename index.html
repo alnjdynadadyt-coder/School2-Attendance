@@ -21,7 +21,7 @@
 
 <div class="container" style="text-align:center;">
     <h2 style="color:#007bff;">نظام إدارة الحضور</h2>
-    <h3> اعدادية النجدين 2</h3>
+    <h3>المدرسة الثانية</h3>
 </div>
 
 <div class="container">
@@ -78,7 +78,7 @@
 <div class="container">
     <h3>إدارة الموظفين</h3>
     <div class="input-group">
-        <input type="text" id="newEmpCode" placeholder="الكود">
+        <input type="text" id="newEmpCode" data-old-code="" placeholder="الكود">
         <input type="text" id="newEmpName" placeholder="الاسم">
         <select id="newEmpType"><option value="مدرس">مدرس</option><option value="موظف">موظف</option><option value="إداري">إداري</option></select>
         <button onclick="addEmployee()" style="background:#6c757d; color:white;">حفظ / تعديل</button>
@@ -102,6 +102,17 @@
     document.getElementById('dateSelector').valueAsDate = new Date();
     document.getElementById('customTime').value = new Date().toLocaleTimeString('ar-EG', {hour: '2-digit', minute:'2-digit', hour12: false});
 
+    window.checkAttendanceStatus = async () => {
+        const date = document.getElementById('dateSelector').value;
+        const emps = await getDocs(collection(db, "employees"));
+        const atts = await getDocs(query(collection(db, "attendance"), where("date", "==", date)));
+        let regCodes = atts.docs.map(d => d.data().empCode);
+        let list = document.getElementById('missingList');
+        list.innerHTML = "";
+        document.getElementById('missingReport').style.display = "block";
+        emps.forEach(d => { if (!regCodes.includes(d.id)) list.innerHTML += `<li>${d.data().name} (كود: ${d.id})</li>`; });
+    };
+
     window.registerAttendance = async () => {
         const code = document.getElementById('empCode').value;
         const date = document.getElementById('dateSelector').value;
@@ -114,9 +125,8 @@
         const empData = empSnap.data();
 
         let status = statusRaw;
-        // منطق التأخير الذكي
         if (status === "حاضر") {
-            let limit = "08:05"; // افتراضي للمدرس
+            let limit = "08:10"; 
             if (empData.type === "موظف") limit = "07:10";
             if (empData.type === "إداري") limit = "07:40";
             if (timeInput > limit) status = "متأخر";
@@ -152,19 +162,79 @@
         });
     };
 
+    window.generateAdvancedReport = async () => {
+        const empCode = document.getElementById('advEmpCode').value;
+        const start = document.getElementById('startDate').value;
+        const end = document.getElementById('endDate').value;
+        const snap = await getDocs(collection(db, "attendance"));
+        let rows = "";
+        snap.forEach(d => {
+            let data = d.data();
+            if((!start || data.date >= start) && (!end || data.date <= end) && (!empCode || data.empCode === empCode)) {
+                rows += `<tr><td>${data.name}</td><td>${data.date}</td><td>${data.time}</td><td>${data.exitTime || ''}</td><td>${data.status}</td><td>${data.reason || ''}</td></tr>`;
+            }
+        });
+        document.getElementById('advReportBody').innerHTML = rows;
+    };
+
+    window.exportAdvReport = () => {
+        let content = `<h1>تقرير مخصص</h1>` + document.getElementById('advReportTable').outerHTML;
+        let a = document.createElement('a');
+        a.href = 'data:application/vnd.ms-excel,' + encodeURIComponent(content);
+        a.download = 'تقرير_مخصص.xls';
+        a.click();
+    };
+
     window.addEmployee = async () => {
+        const oldCode = document.getElementById('newEmpCode').getAttribute('data-old-code');
         const code = document.getElementById('newEmpCode').value;
         const name = document.getElementById('newEmpName').value;
         const type = document.getElementById('newEmpType').value;
-        if(code && name) { await setDoc(doc(db, 'employees', code), { name, type }); alert("تم الحفظ"); }
+        if(code && name) {
+            if (oldCode && oldCode !== code) await deleteDoc(doc(db, 'employees', oldCode));
+            await setDoc(doc(db, 'employees', code), { name, type });
+            alert("تم الحفظ");
+        }
     };
 
     window.deleteAtt = (id) => deleteDoc(doc(db, 'attendance', id));
     window.deleteEmp = (id) => deleteDoc(doc(db, 'employees', id));
 
+    window.importData = (event) => {
+        const file = event.target.files[0];
+        const reader = new FileReader();
+        reader.onload = async (e) => {
+            const data = JSON.parse(e.target.result);
+            for(let item of data) { await addDoc(collection(db, "attendance"), item); }
+            alert("تم الاستيراد!"); renderTable();
+        };
+        reader.readAsText(file);
+    };
+
+    window.exportExcel = () => {
+        let content = `<h1>تقرير الحضور: ${document.getElementById('dateSelector').value}</h1>` + document.getElementById('mainTable').outerHTML;
+        let a = document.createElement('a');
+        a.href = 'data:application/vnd.ms-excel,' + encodeURIComponent(content);
+        a.download = 'تقرير_' + document.getElementById('dateSelector').value + '.xls';
+        a.click();
+    };
+
+    window.backupData = async () => {
+        const snap = await getDocs(collection(db, "attendance"));
+        let data = []; snap.forEach(d => data.push(d.data()));
+        const a = document.createElement('a');
+        a.href = 'data:application/json,' + encodeURIComponent(JSON.stringify(data));
+        a.download = "backup.json";
+        a.click();
+    };
+
     onSnapshot(collection(db, "employees"), snap => {
         let rows = "";
-        snap.forEach(d => { rows += `<tr><td>${d.id}</td><td>${d.data().name}</td><td>${d.data().type || 'مدرس'}</td><td><button class="btn-del" onclick="deleteEmp('${d.id}')">حذف</button></td></tr>`; });
+        snap.forEach(d => {
+            rows += `<tr><td>${d.id}</td><td>${d.data().name}</td><td>${d.data().type || 'موظف'}</td><td>
+            <button onclick="document.getElementById('newEmpCode').value='${d.id}'; document.getElementById('newEmpCode').setAttribute('data-old-code', '${d.id}'); document.getElementById('newEmpName').value='${d.data().name}'; document.getElementById('newEmpType').value='${d.data().type || 'موظف'}';">تعديل</button> 
+            <button class="btn-del" onclick="deleteEmp('${d.id}')">حذف</button></td></tr>`;
+        });
         document.getElementById('employeesTable').innerHTML = rows;
     });
 
