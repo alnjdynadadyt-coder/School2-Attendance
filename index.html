@@ -22,8 +22,8 @@
 <body>
 
 <div class="container" style="text-align:center;">
-    <h2 style="color:#007bff;">نظام إدارة الحضور</h2>
-    <h3>المدرسة الثانية</h3>
+    <h2 style="color:#007bff;">المديرية العامة لتربية القادسية</h2>
+    <h3>اعدادية النجدين للبنين</h3>
 </div>
 
 <div class="container">
@@ -119,7 +119,7 @@
         if (action === 'attendance') {
             if (!snap.empty) { alert("الموظف مسجل بالفعل لهذا اليوم!"); return; }
             let status = "حاضر";
-            let limit = (type === "موظف") ? "07:10" : (type === "إداري") ? "07:40" : "08:10";
+            let limit = (type === "موظف") ? "07:10" : (type === "إداري") ? "07:40" : "08:05";
             if (timeInput > limit) status = "متأخر";
             await addDoc(collection(db, "attendance"), { empCode: code, name, status, time: timeInput, exitTime: "", date, day: now.toLocaleDateString('ar-EG', {weekday: 'long'}), reason: "" });
             alert("تم تسجيل حضور: " + name);
