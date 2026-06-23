@@ -16,14 +16,13 @@
         .btn-del { background: #ff4d4d; color: white; border: none; padding: 5px 10px; border-radius: 3px; }
         .btn-quick { background: #28a745; color: white; padding: 5px 10px; border-radius: 3px; margin: 2px; }
         .btn-exit { background: #6f42c1; color: white; padding: 5px 10px; border-radius: 3px; margin: 2px; }
-        .adv-report-container { background: #fff8e1; border: 2px solid #ffc107; padding: 20px; border-radius: 10px; margin-top: 20px; }
     </style>
 </head>
 <body>
 
 <div class="container" style="text-align:center;">
     <h2 style="color:#007bff;">نظام إدارة الحضور</h2>
-    <h3>اعدادية النجدين2</h3>
+    <h3>المدرسة الثانية</h3>
 </div>
 
 <div class="container">
@@ -35,7 +34,7 @@
 </div>
 
 <div class="container">
-    <h3>التحكم في التاريخ والتقارير</h3>
+    <h3>التحكم والتقارير</h3>
     <input type="date" id="dateSelector" onchange="renderTable()">
     <button onclick="exportExcel()" style="background:green; color:white;">تصدير Excel</button>
     <button onclick="backupData()" style="background:#6c757d; color:white;">نسخة احتياطية (JSON)</button>
@@ -48,14 +47,6 @@
         <div class="stat-card" style="background:#dc3545">غائب: <span id="s_غائب">0</span></div>
     </div>
 
-    <hr>
-    <h3>تسجيل الحضور اليدوي</h3>
-    <div class="input-group">
-        <input type="text" id="empCode" placeholder="كود الموظف">
-        <select id="status"><option>حاضر</option><option>متأخر</option><option>مجاز</option><option>غائب</option></select>
-        <input type="time" id="customTime">
-        <button onclick="registerAttendance()" style="background:#007bff; color:white;">تسجيل</button>
-    </div>
     <table id="mainTable">
         <thead><tr><th>الاسم</th><th>الحضور</th><th>الانصراف</th><th>الحالة</th><th>إجراء</th></tr></thead>
         <tbody id="attendanceTable"></tbody>
@@ -64,7 +55,7 @@
 
 <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js";
-    import { getFirestore, doc, getDoc, collection, addDoc, onSnapshot, setDoc, deleteDoc, query, where, getDocs } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js";
+    import { getFirestore, doc, collection, addDoc, onSnapshot, setDoc, query, where, getDocs } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js";
 
     const db = getFirestore(initializeApp({
         apiKey: "AIzaSyC2KnDmYoQjPKCe8uvf1A2k3yU1hhN9Q2s",
@@ -85,14 +76,13 @@
         if (action === 'attendance') {
             if (!snap.empty) { alert("تم تسجيل الحضور لهذا اليوم مسبقاً!"); return; }
             let status = "حاضر";
-            let limit = (type === "موظف") ? "07:10" : (type === "إداري") ? "07:40" : "08:05";
+            let limit = (type === "موظف") ? "07:10" : (type === "إداري") ? "07:40" : "08:10";
             if (timeInput > limit) status = "متأخر";
             await addDoc(collection(db, "attendance"), { empCode: code, name, status, time: timeInput, exitTime: "", date, day: now.toLocaleDateString('ar-EG', {weekday: 'long'}) });
             alert("تم تسجيل حضور: " + name);
         } else {
             if (snap.empty) { alert("لم يتم تسجيل الحضور بعد!"); return; }
-            const docId = snap.docs[0].id;
-            await setDoc(doc(db, 'attendance', docId), { exitTime: timeInput }, { merge: true });
+            await setDoc(doc(db, 'attendance', snap.docs[0].id), { exitTime: timeInput }, { merge: true });
             alert("تم تسجيل انصراف: " + name);
         }
     };
@@ -115,7 +105,6 @@
 
     window.updateExitTime = async (id, time) => { await setDoc(doc(db, 'attendance', id), { exitTime: time }, { merge: true }); };
     document.getElementById('dateSelector').valueAsDate = new Date();
-    document.getElementById('customTime').value = new Date().toLocaleTimeString('ar-EG', {hour: '2-digit', minute:'2-digit', hour12: false});
 
     onSnapshot(collection(db, "employees"), snap => {
         let qRows = "";
