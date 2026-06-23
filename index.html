@@ -123,7 +123,7 @@
         const empSnap = await getDoc(doc(db, "employees", code));
         if (!empSnap.exists()) { alert("الكود غير موجود"); return; }
         let status = statusRaw;
-        if(status === "حاضر" && timeInput > "08:05") status = "متأخر";
+        if(status === "حاضر" && timeInput > "07:11") status = "متأخر";
         await addDoc(collection(db, "attendance"), { empCode: code, name: empSnap.data().name, status, time: (status === "غائب" || status === "مجاز") ? "-" : timeInput, exitTime: "", date, day: new Date(date).toLocaleDateString('ar-EG', {weekday: 'long'}), reason: document.getElementById('reason').value });
         alert("تم التسجيل");
     };
